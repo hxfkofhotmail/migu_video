@@ -1,5 +1,6 @@
 name: Incremental Sync
 on:
+  workflow_dispatch:  # 手动触发
   schedule:
     - cron: '0 18 * * 3'  # UTC时间周三18点，对应北京时间周四凌晨2点
 
