@@ -267,8 +267,6 @@ async function shouldUpdateVideo(existingVideo, newData) {
 }
 
 // 保存剧集数据 - 修正版本：detail是总简介，不是每集简介
-// 在 saveEpisodesData 函数中，修改剧集保存逻辑：
-
 // 保存剧集数据 - 简化版本：不需要每集的detail
 // 保存剧集数据 - 简化版本：先删除所有旧剧集，再插入新剧集
 async function saveEpisodesData(videoId, safeData, videoDetail) {
