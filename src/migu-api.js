@@ -266,7 +266,7 @@ async function shouldUpdateVideo(existingVideo, newData) {
   return false;
 }
 
-// 保存剧集数据 - 优化版本
+// 保存剧集数据 - 修正版本：detail是总简介，不是每集简介
 async function saveEpisodesData(videoId, safeData, videoDetail) {
   try {
     let episodes = [];
@@ -288,7 +288,9 @@ async function saveEpisodesData(videoId, safeData, videoDetail) {
           episodeId: episodeId,
           episodeName: episodeName,
           episodeIndex: episodeIndex,
-          detail: episodeData.detail || '',
+          // 注意：这里不使用 episodeData.detail，因为那是总简介
+          // 每集的简介通常为空，或者有单独的字段
+          detail: '', // 每集的详细描述通常为空
           duration: episodeData.duration || '',
           assetId: episodeData.assetID || '',
           programId: episodeData.pID || '',
@@ -358,7 +360,7 @@ async function saveEpisodesData(videoId, safeData, videoDetail) {
         episodeId: videoPid,
         episodeName: videoType === 'movie' ? '正片' : '全集',
         episodeIndex: 1,
-        detail: safeData.detail || '',
+        detail: '', // 电影的detail已经在videos表中保存
         duration: '',
         assetId: '',
         programId: videoPid,
@@ -495,7 +497,7 @@ function calculateTotalEpisodes(videoData) {
   return 1;
 }
 
-// 准备视频数据 - 增强版本
+// 准备视频数据 - 修正版本：detail是总简介
 function prepareVideoData(videoData, categoryId, videoDetail = null) {
   // 智能判断视频类型
   const videoType = determineVideoType(videoData, categoryId);
@@ -531,7 +533,9 @@ function prepareVideoData(videoData, categoryId, videoDetail = null) {
     contDisplayType: categoryId,
     videoType: videoType,
     totalEpisodes: calculateTotalEpisodes(videoData),
-    detail: detailInfo.detail || mainData.detail || '',
+    
+    // 🔥 重要修正：detail 是整个视频的总简介，不是每集的简介
+    detail: detailInfo.detail || '', // 使用顶层的detail，这是总简介
     
     // 关键词和播放类型
     wcKeyword: mainData.KEYWORDS || videoData.wcKeyword || '',
@@ -553,6 +557,7 @@ function prepareVideoData(videoData, categoryId, videoDetail = null) {
 
   console.log(`📊 视频数据: ${safeData.name}`);
   console.log(`  类型: ${safeData.videoType}, 地区: "${safeData.area}", 评分: ${safeData.score}, 集数: ${safeData.totalEpisodes}`);
+  console.log(`  详情长度: ${safeData.detail ? safeData.detail.length : 0} 字符`);
 
   return safeData;
 }
@@ -571,7 +576,7 @@ function getVideoBindParams(safeData) {
   const recommendationJson = JSON.stringify(safeData.recommendation);
   
   const extraDataJson = JSON.stringify({
-    detail: safeData.detail,
+    detail: safeData.detail, // 总简介也保存在extra_data中备份
     episodes: safeData.extraData.episodes || [],
     episodeList: safeData.extraData.episodeList || []
   });
@@ -617,7 +622,7 @@ function getVideoBindParams(safeData) {
     safeData.tipMsg,                    // 38. tip_msg
     safeData.storeTipCode,              // 39. store_tip_code
     safeData.storeTipMsg,               // 40. store_tip_msg
-    safeData.detail                     // 41. detail (新增字段)
+    safeData.detail                     // 41. detail (总简介)
   ];
 }
 
