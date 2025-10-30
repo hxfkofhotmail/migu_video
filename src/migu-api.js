@@ -108,9 +108,18 @@ export async function saveVideoData(videoData, categoryId) {
     const videoDetail = await fetchVideoDetail(videoData.pID);
     
     const safeData = prepareVideoData(videoData, categoryId, videoDetail);
+    
+    // 判断是否需要更新
+    const shouldUpdate = await shouldUpdateVideo(existingVideo, safeData);
+    
+    if (!shouldUpdate && existingVideo) {
+      console.log(`⏭️  跳过更新: ${safeData.name} (无变化)`);
+      return true;
+    }
+    
     const bindParams = getVideoBindParams(safeData);
     
-    if (existingVideo) {
+    if (existingVideo && shouldUpdate) {
       // 更新现有记录
       await executeSQL(`
         UPDATE videos SET
@@ -123,7 +132,7 @@ export async function saveVideoData(videoData, categoryId) {
           source_publish_time = ?, source_publish_timestamp = ?,
           video_type = ?, wc_keyword = ?, play_type = ?, create_time = ?, publish_date = ?,
           tip_code = ?, tip_msg = ?, store_tip_code = ?, store_tip_msg = ?,
-          updated_at = datetime('now')
+          detail = ?, updated_at = datetime('now')
         WHERE p_id = ?
       `, [...bindParams.slice(1), safeData.pID]);
       
@@ -140,8 +149,9 @@ export async function saveVideoData(videoData, categoryId) {
           publish_time, publish_timestamp, recommendation, extra_data,
           source_publish_time, source_publish_timestamp,
           video_type, wc_keyword, play_type, create_time, publish_date,
-          tip_code, tip_msg, store_tip_code, store_tip_msg, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+          tip_code, tip_msg, store_tip_code, store_tip_msg, detail,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
       `, bindParams);
       
       console.log(`✅ 新增视频成功: ${safeData.name}`);
@@ -173,11 +183,13 @@ export async function saveVideoData(videoData, categoryId) {
         safeData.wcKeyword
       ]);
       
-      // 保存剧集信息
-      const episodesSaved = await saveEpisodesData(videoId, safeData, videoDetail);
-      
-      if (episodesSaved) {
-        console.log(`🎬 视频 ${safeData.name} 剧集保存成功`);
+      // 保存剧集信息 - 只在新增或剧集类更新时处理
+      if (!existingVideo || safeData.videoType !== 'movie') {
+        const episodesSaved = await saveEpisodesData(videoId, safeData, videoDetail);
+        
+        if (episodesSaved) {
+          console.log(`🎬 视频 ${safeData.name} 剧集保存成功`);
+        }
       }
     }
     
@@ -193,15 +205,65 @@ export async function saveVideoData(videoData, categoryId) {
 async function checkVideoExists(pId) {
   try {
     const result = await executeSQL(
-      'SELECT id FROM videos WHERE p_id = ?',
+      'SELECT id, score, update_ep, total_episodes FROM videos WHERE p_id = ?',
       [pId]
     );
     
-    return result && result.result && result.result[0] && result.result[0].results && result.result[0].results.length > 0;
+    if (result && result.result && result.result[0] && result.result[0].results && result.result[0].results.length > 0) {
+      return result.result[0].results[0];
+    }
+    return null;
   } catch (error) {
     console.error(`❌ 检查视频存在失败:`, error.message);
-    return false;
+    return null;
   }
+}
+
+// 判断是否需要更新视频
+async function shouldUpdateVideo(existingVideo, newData) {
+  if (!existingVideo) {
+    return true; // 新增视频
+  }
+  
+  // 电影类：主要检查评分是否有变化
+  if (newData.videoType === 'movie') {
+    const oldScore = parseFloat(existingVideo.score) || 0;
+    const newScore = parseFloat(newData.score) || 0;
+    
+    if (Math.abs(oldScore - newScore) > 0.1) {
+      console.log(`🎬 电影评分变化: ${oldScore} -> ${newScore}`);
+      return true;
+    }
+  } 
+  // 剧集类：检查评分、集数信息
+  else {
+    const oldScore = parseFloat(existingVideo.score) || 0;
+    const newScore = parseFloat(newData.score) || 0;
+    const oldUpdateEP = existingVideo.update_ep || '';
+    const newUpdateEP = newData.updateEP || '';
+    const oldTotalEpisodes = existingVideo.total_episodes || 0;
+    const newTotalEpisodes = newData.totalEpisodes || 0;
+    
+    // 检查评分变化
+    if (Math.abs(oldScore - newScore) > 0.1) {
+      console.log(`📺 剧集评分变化: ${oldScore} -> ${newScore}`);
+      return true;
+    }
+    
+    // 检查集数信息变化
+    if (oldUpdateEP !== newUpdateEP) {
+      console.log(`📺 更新集数变化: "${oldUpdateEP}" -> "${newUpdateEP}"`);
+      return true;
+    }
+    
+    // 检查总集数变化
+    if (oldTotalEpisodes !== newTotalEpisodes) {
+      console.log(`📺 总集数变化: ${oldTotalEpisodes} -> ${newTotalEpisodes}`);
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 // 保存剧集数据 - 优化版本
@@ -228,7 +290,9 @@ async function saveEpisodesData(videoId, safeData, videoDetail) {
           episodeIndex: episodeIndex,
           detail: episodeData.detail || '',
           duration: episodeData.duration || '',
-          assetId: episodeData.assetID || ''
+          assetId: episodeData.assetID || '',
+          programId: episodeData.pID || '',
+          displayType: episodeData.displayType || safeData.contDisplayType
         };
       });
     }
@@ -243,10 +307,7 @@ async function saveEpisodesData(videoId, safeData, videoDetail) {
         // 尝试从 episodeList 获取剧集名称
         if (safeData.extraData.episodeList && safeData.extraData.episodeList[index]) {
           const episodeInfo = safeData.extraData.episodeList[index];
-          episodeName = episodeInfo.name
-            .replace(/《[^》]*》/, '')
-            .replace(safeData.name, '')
-            .trim() || `第${index + 1}集`;
+          episodeName = episodeInfo.name || `第${index + 1}集`;
         }
         
         return {
@@ -255,7 +316,9 @@ async function saveEpisodesData(videoId, safeData, videoDetail) {
           episodeIndex: index + 1,
           detail: '',
           duration: '',
-          assetId: ''
+          assetId: '',
+          programId: episodeId,
+          displayType: safeData.contDisplayType
         };
       });
     }
@@ -271,7 +334,9 @@ async function saveEpisodesData(videoId, safeData, videoDetail) {
             episodeIndex: i + 1,
             detail: '',
             duration: '',
-            assetId: ''
+            assetId: '',
+            programId: `${videoPid}_${i + 1}`,
+            displayType: safeData.contDisplayType
           });
         }
       } else {
@@ -281,7 +346,9 @@ async function saveEpisodesData(videoId, safeData, videoDetail) {
           episodeIndex: 1,
           detail: '',
           duration: '',
-          assetId: ''
+          assetId: '',
+          programId: videoPid,
+          displayType: safeData.contDisplayType
         });
       }
     }
@@ -293,7 +360,9 @@ async function saveEpisodesData(videoId, safeData, videoDetail) {
         episodeIndex: 1,
         detail: safeData.detail || '',
         duration: '',
-        assetId: ''
+        assetId: '',
+        programId: videoPid,
+        displayType: safeData.contDisplayType
       });
     }
     
@@ -313,7 +382,7 @@ async function saveEpisodesData(videoId, safeData, videoDetail) {
           // 更新现有剧集
           await executeSQL(`
             UPDATE episodes SET
-              episode_name = ?, episode_index = ?, detail = ?, duration = ?, asset_id = ?, updated_at = datetime('now')
+              episode_name = ?, episode_index = ?, detail = ?, duration = ?, asset_id = ?, program_id = ?, display_type = ?, updated_at = datetime('now')
             WHERE video_id = ? AND episode_id = ?
           `, [
             episode.episodeName,
@@ -321,6 +390,8 @@ async function saveEpisodesData(videoId, safeData, videoDetail) {
             episode.detail,
             episode.duration,
             episode.assetId,
+            episode.programId,
+            episode.displayType,
             videoId,
             episode.episodeId
           ]);
@@ -328,8 +399,8 @@ async function saveEpisodesData(videoId, safeData, videoDetail) {
           // 新增剧集
           await executeSQL(`
             INSERT INTO episodes 
-            (video_id, episode_id, episode_name, episode_index, detail, duration, asset_id, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+            (video_id, episode_id, episode_name, episode_index, detail, duration, asset_id, program_id, display_type, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
           `, [
             videoId,
             episode.episodeId,
@@ -337,7 +408,9 @@ async function saveEpisodesData(videoId, safeData, videoDetail) {
             episode.episodeIndex,
             episode.detail,
             episode.duration,
-            episode.assetId
+            episode.assetId,
+            episode.programId,
+            episode.displayType
           ]);
         }
         
@@ -479,7 +552,7 @@ function prepareVideoData(videoData, categoryId, videoDetail = null) {
   };
 
   console.log(`📊 视频数据: ${safeData.name}`);
-  console.log(`  地区: "${safeData.area}", 关键词: "${safeData.wcKeyword}", 详情: ${safeData.detail ? '有' : '无'}`);
+  console.log(`  类型: ${safeData.videoType}, 地区: "${safeData.area}", 评分: ${safeData.score}, 集数: ${safeData.totalEpisodes}`);
 
   return safeData;
 }
@@ -543,7 +616,8 @@ function getVideoBindParams(safeData) {
     safeData.tipCode,                   // 37. tip_code
     safeData.tipMsg,                    // 38. tip_msg
     safeData.storeTipCode,              // 39. store_tip_code
-    safeData.storeTipMsg                // 40. store_tip_msg
+    safeData.storeTipMsg,               // 40. store_tip_msg
+    safeData.detail                     // 41. detail (新增字段)
   ];
 }
 
