@@ -2,7 +2,7 @@ name: incremental-sync-2025
 on:
   workflow_dispatch:  # 手动触发
   schedule:
-    - cron: '0 19 * * *'  # UTC时间19点，对应北京时间第二天凌晨3点
+    - cron: '0 7 * * *'  # UTC时间7点，对应北京时间15点
 
 jobs:
   incremental-sync-2025:
