@@ -21,8 +21,8 @@ async function fullSyncAllCategories() {
   console.log(`🚀 开始全量同步所有分类数据 - ${syncMode}`);
   
   // 所有6个分类
-  //const allCategories = ['1000', '1001', '1005', '1002', '1007', '601382'];
-  const allCategories = ['601382'];
+  const allCategories = ['1000', '1001', '1005', '1002', '1007', '601382'];
+  //const allCategories = ['601382'];
   const categoryNames = {
     '1000': '电影',
     '1001': '电视剧', 
