@@ -1,11 +1,11 @@
-name: Incremental Sync
+name: incremental-sync-Member
 on:
   workflow_dispatch:  # 手动触发
   schedule:
     - cron: '0 18 * * 3'  # UTC时间周三18点，对应北京时间周四凌晨2点
 
 jobs:
-  incremental-sync:
+  incremental-sync-Member:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -13,8 +13,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      - name: Run incremental sync
-        run: node incremental-sync-Member.js
+      - name: Run incremental-sync-Member
+        run: node ./src/incremental-sync-Member.js
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
