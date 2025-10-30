@@ -1,0 +1,13 @@
+{
+  "name": "migu-sync",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "init": "node src/init.js",
+    "full": "node src/full-sync.js", 
+    "incremental": "node src/incremental-sync.js"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
