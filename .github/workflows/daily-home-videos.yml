@@ -1,10 +1,10 @@
-name: Incremental Sync
+name: daily-home-videos
 on:
   schedule:
     - cron: '0 19 * * *'  # UTC时间19点，对应北京时间第二天凌晨3点
 
 jobs:
-  incremental-sync:
+  daily-home-videos:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -13,7 +13,7 @@ jobs:
         with:
           node-version: '18'
       - name: Run incremental sync
-        run: node your-script.js
+        run: node daily-home-videos.js
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
