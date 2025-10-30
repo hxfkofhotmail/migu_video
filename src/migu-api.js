@@ -89,7 +89,7 @@ export async function fetchVideoDetail(pId) {
       return null;
     }
     
-    console.log(`✅ 获取视频详情成功: ${pId}`);
+    //console.log(`✅ 获取视频详情成功: ${pId}`);
     return data.body?.data || null;
     
   } catch (error) {
@@ -113,7 +113,7 @@ export async function saveVideoData(videoData, categoryId) {
     const shouldUpdate = await shouldUpdateVideo(existingVideo, safeData);
     
     if (!shouldUpdate && existingVideo) {
-      console.log(`⏭️  跳过更新: ${safeData.name} (无变化)`);
+      //console.log(`⏭️  跳过更新: ${safeData.name} (无变化)`);
       return true;
     }
     
@@ -296,7 +296,7 @@ async function saveEpisodesData(videoId, safeData, videoDetail) {
     // 从 extraData.episodes 获取剧集ID
     else if (safeData.extraData && safeData.extraData.episodes && Array.isArray(safeData.extraData.episodes)) {
       const episodeIds = safeData.extraData.episodes;
-      console.log(`📋 从extraData获取 ${episodeIds.length} 个剧集ID`);
+     // console.log(`📋 从extraData获取 ${episodeIds.length} 个剧集ID`);
       
       episodes = episodeIds.map((episodeId, index) => {
         let episodeName = `第${index + 1}集`;
@@ -369,7 +369,7 @@ async function saveEpisodesData(videoId, safeData, videoDetail) {
         ]);
         
         savedCount++;
-        console.log(`✅ 新增剧集: ${episode.episodeName}`);
+     //   console.log(`✅ 新增剧集: ${episode.episodeName}`);
       } catch (episodeError) {
         console.error(`❌ 保存剧集失败 ${episode.episodeName}:`, episodeError.message);
       }
