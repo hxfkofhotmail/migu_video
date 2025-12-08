@@ -4,7 +4,7 @@ on:
   schedule:
     # 每周日 22:00 北京时间 → UTC 14:00
     - cron: "0 14 * * 0"
-  workflow_dispatch: # 支持手动触发
+  workflow_dispatch:
 
 jobs:
   cleanup:
@@ -20,45 +20,62 @@ jobs:
       - name: Cleanup old workflow runs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          KEEP_DAYS: 3
+          KEEP_DAYS: 1
           OWNER: ${{ github.repository_owner }}
-          REPO: ${{ github.repository }}
+          FULL_REPO: ${{ github.repository }}
         run: |
           echo "🕒 保留最近 $KEEP_DAYS 天内的 workflow runs"
 
+          # 从 owner/repo 中提取 repo 名
+          REPO="${FULL_REPO#*/}"
+
+          echo "📦 仓库: $OWNER / $REPO"
+
           THRESHOLD=$(date -d "-$KEEP_DAYS days" --utc +%Y-%m-%dT%H:%M:%SZ)
+          echo "🗓️ 删除创建时间 < $THRESHOLD 的 runs"
 
           page=1
           per_page=100
 
           while true; do
-              runs_json=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              echo "📄 获取第 $page 页 runs..."
+
+              runs_json=$(curl -s \
+                  -H "Authorization: token $GITHUB_TOKEN" \
                   "https://api.github.com/repos/$OWNER/$REPO/actions/runs?per_page=$per_page&page=$page")
 
               run_count=$(echo "$runs_json" | jq '.workflow_runs | length')
+
               if [[ "$run_count" -eq 0 ]]; then
                   echo "✅ 已处理完所有 runs"
                   break
               fi
 
-              for run_id in $(echo "$runs_json" | jq -r '.workflow_runs[] | "\(.id) \(.created_at)"'); do
-                  id=$(echo $run_id | awk '{print $1}')
-                  created_at=$(echo $run_id | awk '{print $2}')
+              echo "👉 本页共有 $run_count 个 runs"
+
+              for row in $(echo "$runs_json" | jq -r '.workflow_runs[] | @base64'); do
+                  decode() { echo "$row" | base64 --decode | jq -r "$1"; }
+
+                  id=$(decode '.id')
+                  created_at=$(decode '.created_at')
 
                   if [[ "$created_at" < "$THRESHOLD" ]]; then
                       echo "🗑️ 删除 run: $id (创建于 $created_at)"
 
-                      artifacts=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-                          "https://api.github.com/repos/$OWNER/$REPO/actions/runs/$id/artifacts" | jq -r '.artifacts[].id')
+                      # 删除 artifacts
+                      artifacts=$(curl -s \
+                          -H "Authorization: token $GITHUB_TOKEN" \
+                          "https://api.github.com/repos/$OWNER/$REPO/actions/runs/$id/artifacts" \
+                          | jq -r '.artifacts[].id')
 
                       for artifact_id in $artifacts; do
-                          echo "   删除 artifact: $artifact_id"
+                          echo "   ➤ 删除 artifact: $artifact_id"
                           curl -s -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
-                              "https://api.github.com/repos/$OWNER/$REPO/actions/artifacts/$artifact_id"
+                              "https://api.github.com/repos/$OWNER/$REPO/actions/artifacts/$artifact_id" > /dev/null
                       done
 
                       curl -s -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
-                          "https://api.github.com/repos/$OWNER/$REPO/actions/runs/$id"
+                          "https://api.github.com/repos/$OWNER/$REPO/actions/runs/$id" > /dev/null
                   fi
               done
 
