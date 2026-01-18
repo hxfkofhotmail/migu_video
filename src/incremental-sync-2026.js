@@ -82,9 +82,9 @@ async function saveVideoDataWithRetry(videoData, categoryId, maxRetries = 3) {
   return false;
 }
 
-async function incrementalSync2025Videos() {
+async function incrementalSync2026Videos() {
   checkEnv();
-  console.log('🎯 开始增量同步2025年视频数据');
+  console.log('🎯 开始增量同步2026年视频数据');
   console.log(`🔄 重试机制: 最多 3 次`);
   
   const allCategories = ['1000', '1001', '1005', '1002', '1007', '601382'];
@@ -99,11 +99,11 @@ async function incrementalSync2025Videos() {
   
   for (const cid of allCategories) {
     const categoryName = categoryNames[cid] || cid;
-    console.log(`\n🚀 开始增量同步分类: ${categoryName} (${cid}) - 仅2025年`);
+    console.log(`\n🚀 开始增量同步分类: ${categoryName} (${cid}) - 仅2026年`);
     
     await executeSQL(`
       UPDATE sync_status 
-      SET status = 'syncing', sync_type = 'incremental_2025', last_sync = datetime('now')
+      SET status = 'syncing', sync_type = 'incremental_2026', last_sync = datetime('now')
       WHERE category_id = ?
     `, [cid]);
     
@@ -113,14 +113,14 @@ async function incrementalSync2025Videos() {
       let categoryNew = 0;
       let categoryUpdated = 0;
       
-      console.log(`📋 检查分类 ${categoryName} 的2025年视频`);
+      console.log(`📋 检查分类 ${categoryName} 的2026年视频`);
       
       // 遍历所有页面，直到没有数据
       while (hasMoreData) {
-        console.log(`📄 检查分类 ${categoryName} 第 ${currentPage} 页 - 2025年`);
+        console.log(`📄 检查分类 ${categoryName} 第 ${currentPage} 页 - 2026年`);
         
         // 🔥 使用带重试机制的获取函数
-        const videos = await fetchMiguCategoryWithRetry(cid, currentPage, 50, { mediaYear: '2025' });
+        const videos = await fetchMiguCategoryWithRetry(cid, currentPage, 50, { mediaYear: '2026' });
         
         // 如果没有数据或数据为空，停止同步
         if (!videos || videos.length === 0) {
@@ -129,22 +129,22 @@ async function incrementalSync2025Videos() {
           break;
         }
         
-        // 过滤出2025年的视频
-        const videos2025 = videos.filter(video => {
+        // 过滤出2026年的视频
+        const videos2026 = videos.filter(video => {
           const videoYear = (video.year || '').toString().trim();
-          return videoYear === '2025';
+          return videoYear === '2026';
         });
         
-        console.log(`📥 获取到 ${videos.length} 个视频，其中 ${videos2025.length} 个是2025年的`);
+        console.log(`📥 获取到 ${videos.length} 个视频，其中 ${videos2026.length} 个是2026年的`);
         
-        // 如果没有2025年的视频，继续下一页
-        if (videos2025.length === 0) {
-          console.log(`📭 第 ${currentPage} 页没有2025年视频，继续下一页`);
+        // 如果没有2026年的视频，继续下一页
+        if (videos2026.length === 0) {
+          console.log(`📭 第 ${currentPage} 页没有2026年视频，继续下一页`);
           currentPage++;
           
-          // 如果连续3页都没有2025年视频，停止同步
+          // 如果连续3页都没有2026年视频，停止同步
           if (currentPage > 3) {
-            console.log(`⏹️  连续3页没有2025年视频，停止同步`);
+            console.log(`⏹️  连续3页没有2026年视频，停止同步`);
             hasMoreData = false;
             break;
           }
@@ -155,7 +155,7 @@ async function incrementalSync2025Videos() {
         let pageNew = 0;
         let pageUpdated = 0;
         
-        for (const videoData of videos2025) {
+        for (const videoData of videos2026) {
           // 🔥 使用带重试机制的保存函数
           const success = await saveVideoDataWithRetry(videoData, cid);
           
@@ -173,11 +173,11 @@ async function incrementalSync2025Videos() {
             if (isNewVideo) {
               pageNew++;
               categoryNew++;
-              console.log(`🆕 新增2025年视频: ${videoData.name || '未知'}`);
+              console.log(`🆕 新增2026年视频: ${videoData.name || '未知'}`);
             } else {
               pageUpdated++;
               categoryUpdated++;
-              console.log(`🔄 更新2025年视频: ${videoData.name || '未知'}`);
+              console.log(`🔄 更新2026年视频: ${videoData.name || '未知'}`);
             }
           }
         }
@@ -196,7 +196,7 @@ async function incrementalSync2025Videos() {
       // 更新分类统计
       const totalResult = await executeSQL(
         'SELECT COUNT(*) as count FROM videos WHERE cont_display_type = ? AND TRIM(year) = ?',
-        [cid, '2025']
+        [cid, '2026']
       );
       
       let totalVideos = 0;
@@ -214,13 +214,13 @@ async function incrementalSync2025Videos() {
       totalNew += categoryNew;
       totalUpdated += categoryUpdated;
       
-      console.log(`✅ 分类 ${categoryName} 2025年增量同步完成:`);
+      console.log(`✅ 分类 ${categoryName} 2026年增量同步完成:`);
       console.log(`   新增视频: ${categoryNew} 个`);
       console.log(`   更新视频: ${categoryUpdated} 个`);
       console.log(`   检查页数: ${currentPage - 1} 页`);
       
     } catch (error) {
-      console.error(`❌ 分类 ${categoryName} 2025年增量同步失败:`, error);
+      console.error(`❌ 分类 ${categoryName} 2026年增量同步失败:`, error);
       await executeSQL(`
         UPDATE sync_status SET status = 'error', error_message = ? 
         WHERE category_id = ?
@@ -234,7 +234,7 @@ async function incrementalSync2025Videos() {
     }
   }
   
-  console.log(`\n🎉 2025年增量同步完成!`);
+  console.log(`\n🎉 2026年增量同步完成!`);
   console.log(`✅ 成功同步: ${successCount}/${allCategories.length} 个分类`);
   console.log(`🆕 新增视频: ${totalNew} 个`);
   console.log(`🔄 更新视频: ${totalUpdated} 个`);
@@ -243,8 +243,8 @@ async function incrementalSync2025Videos() {
 
 // 如果直接运行此文件，则执行增量同步
 if (import.meta.url === `file://${process.argv[1]}`) {
-  incrementalSync2025Videos().catch(console.error);
+  incrementalSync2026Videos().catch(console.error);
 }
 
 // 导出函数供其他模块使用
-export { incrementalSync2025Videos };
+export { incrementalSync2026Videos };
