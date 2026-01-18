@@ -44,7 +44,7 @@ async function fetchHomeVideos() {
 // 获取高质量图片
 function getHighQualityPic(item) {
   const pics = item.pics || {};
-  return pics.highResolutionH || pics.highResolution || pics.lowResolutionH || pics.lowResolution || '';
+  return pics.highResolutionV || pics.lowResolutionV || pics.highResolutionH || pics.lowResolutionH || '';
 }
 
 // 构建备注信息
