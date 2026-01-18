@@ -515,8 +515,8 @@ function prepareVideoData(videoData, categoryId, videoDetail = null) {
 // 获取视频绑定参数
 function getVideoBindParams(safeData) {
   const picUrl = getHighQualityPic(safeData.pics) || '';
-  const picUrlH = safeData.pics.highResolutionV || safeData.pics.lowResolutionV || '';
-  const picUrlV = safeData.pics.highResolutionH || safeData.pics.lowResolutionH || '';
+  const picUrlH = safeData.pics.highResolutionH || safeData.pics.lowResolutionH || '';
+  const picUrlV = safeData.pics.highResolutionV || safeData.pics.lowResolutionV || '';
   
   const is4k = safeData.recommendation.includes('4K') ? 1 : 0;
   const isOriginal = safeData.recommendation.includes('原画') ? 1 : 0;
